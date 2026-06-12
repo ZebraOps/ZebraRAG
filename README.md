@@ -1,12 +1,13 @@
 <div align="center">
-  <h1>Zebra-RAG</h1>
+  <h1>🦓 ZebraRAG</h1>
   <span>中文 | <a href="./README.en.md">English</a></span>
   <br/><br/>
   <img src="https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white" />
   <img src="https://img.shields.io/badge/FastAPI-0.115-009688?logo=fastapi&logoColor=white" />
   <img src="https://img.shields.io/badge/PostgreSQL-15+-4169E1?logo=postgresql&logoColor=white" />
-  <img src="https://img.shields.io/badge/pgvector-Latest-FF6B6B?logo=postgresql&logoColor=white" />
-  <img src="https://img.shields.io/badge/SQLAlchemy-2.0-CC2927?logo=sqlalchemy&logoColor=white" />
+  <img src="https://img.shields.io/badge/pgvector-0.6-FF6B6B?logo=postgresql&logoColor=white" />
+  <img src="https://img.shields.io/badge/Embedding-BGE_zh_ONNX-14B8A6?logo=huggingface&logoColor=white" />
+  <img src="https://img.shields.io/badge/LLM-glm--5-FF6B01" />
   <img src="https://img.shields.io/badge/License-MIT-green" />
 </div>
 
@@ -14,113 +15,138 @@
 
 ## 📖 项目简介
 
-**Zebra-RAG** 是一个面向 DevOps/SRE 场景的 RAG (检索增强生成) 知识库服务，支持故障案例管理、SOP 模板、智能问答。基于 PostgreSQL + pgvector 构建向量存储，集成腾讯 CodingPlan glm-5 模型，为运维团队提供智能知识检索与生成能力。
+**ZebraRAG** 是 ZebraOps 平台的 RAG（检索增强生成）知识库服务，面向 DevOps/SRE 场景，提供故障案例管理、标准流程（SOP）、操作指南和最佳实践的智能检索与问答。
 
-> 项目主页：[https://github.com/ZebraOps/ZebraRAG](https://github.com/ZebraOps/ZebraRAG)
+### 🏗️ 架构概览
+
+```
+┌─────────────┐     ┌──────────────┐     ┌─────────────────┐
+│  ZebraAdmin │────▶│ ZebraGateway │────▶│   ZebraRAG      │
+│  (React 19) │     │  (Go + Gin)  │     │ (Python 3.11)   │
+│   :4120     │     │    :4121     │     │    :4124        │
+└─────────────┘     └──────────────┘     │                 │
+                                         │ ┌─────────────┐ │
+                                         │ │ LLM (远程)   │ │
+                                         │ │ glm-5 腾讯   │ │
+                                         │ └─────────────┘ │
+                                         │ ┌─────────────┐ │
+                                         │ │ 嵌入 (本地)  │ │
+                                         │ │ BGE ONNX 512d│ │
+                                         │ └─────────────┘ │
+                                         │ ┌─────────────┐ │
+                                         │ │ pgvector     │ │
+                                         │ │ PostgreSQL   │ │
+                                         │ └─────────────┘ │
+                                         └─────────────────┘
+```
+
+> 项目仓库：[https://github.com/ZebraOps/ZebraRAG](https://github.com/ZebraOps/ZebraRAG)
 
 ---
 
 ## ✨ 核心特性
 
-- 🎯 **运维场景定制** — 故障案例(incident)、SOP(sop)、指南(guide)、最佳实践(best_practice) 四类文档
+- 🎯 **运维场景定制** — 故障案例（incident）、SOP（sop）、指南（guide）、最佳实践（best_practice）
 - 🔍 **RAG 智能问答** — 向量检索 + LLM 生成，精准定位知识并生成答案
-- 🧩 **智能分块策略** — 句子边界分块 + Markdown 专用分块，保持语义完整性
+- 🧠 **本地嵌入** — fastembed + BGE-small-zh-v1.5（ONNX），512 维，无需 GPU / 外部 API
+- 🧩 **智能分块** — 句子边界分块 + Markdown 专用分块，保持语义完整性
+- 📊 **向量存储** — PostgreSQL + pgvector，零额外向量数据库
 - 🔐 **JWT 认证** — HS256 算法，与 ZebraGateway 无缝集成
-- 📊 **向量存储** — PostgreSQL + pgvector，无需额外向量数据库
-- 🌐 **配置中心** — Nacos 集成，配置优先级: Nacos > 本地 .env > 默认值
-- 🚀 **异步架构** — FastAPI + SQLAlchemy 2.0 AsyncSession，高性能异步 I/O
-- 📋 **RESTful API** — 统一响应格式，自动校验，Swagger/ReDoc 文档
-- 🏢 **多租户支持** — 组织隔离、集合管理、权限控制
-- ⚡ **模板系统** — 故障案例模板、SOP 标准流程模板
+- 🌐 **Nacos 配置中心** — 配置优先级：Nacos > .env > 默认值，支持热更新
+- ⚡ **全异步架构** — FastAPI + SQLAlchemy 2.0 AsyncSession + asyncpg
+- 📋 **RESTful API** — 统一 `{code, message, data}` 响应，Swagger / ReDoc 文档
+- 🏢 **多租户** — 组织隔离、集合管理、模板系统
 
 ---
 
 ## 🛠️ 技术栈
 
-| 类别 | 技术 / 版本 |
-|------|-------------|
-| **语言** | Python 3.11+ |
-| **Web 框架** | [FastAPI](https://fastapi.tiangolo.com/) 0.115（异步 ASGI 框架） |
-| **ORM** | [SQLAlchemy](https://www.sqlalchemy.org/) 2.0 + AsyncSession（异步会话） |
-| **数据库驱动** | [asyncpg](https://magicstack.github.io/asyncpg/) 0.30 + [psycopg2-binary](https://www.psycopg.org/) 2.9.10 |
-| **数据库** | PostgreSQL 15+（`zebra_rag` 库，需安装 pgvector 扩展） |
-| **向量存储** | [pgvector](https://github.com/pgvector/pgvector)（PostgreSQL 扩展） |
-| **数据校验** | [Pydantic](https://docs.pydantic.dev/) v2 + pydantic-settings 2.6 |
-| **认证方式** | JWT（HS256 算法），[python-jose](https://python-jose.readthedocs.io/) |
-| **LLM** | 腾讯 CodingPlan glm-5（Embedding + Chat） |
-| **ASGI 服务器** | [Uvicorn](https://www.uvicorn.org/) 0.32 |
-| **配置中心** | Nacos 2.x（`nacos-sdk-python` 3.2.0） |
+| 类别 | 技术 | 说明 |
+|------|------|------|
+| **语言** | Python 3.11+ | — |
+| **Web 框架** | FastAPI 0.115 | 异步 ASGI |
+| **ORM** | SQLAlchemy 2.0 + AsyncSession | 异步会话 |
+| **数据库驱动** | asyncpg 0.30 / psycopg2-binary 2.9 | — |
+| **数据库** | PostgreSQL 15+ | 需 pgvector 扩展 |
+| **向量存储** | pgvector 0.6 | IVFFlat 索引，L2 距离 |
+| **LLM（对话）** | 腾讯 CodingPlan glm-5 | API: `/coding/v3/chat/completions` |
+| **Embedding（嵌入）** | BAAI/bge-small-zh-v1.5 | fastembed + ONNX Runtime，本地运行 |
+| **嵌入维度** | 512 | L2 归一化 |
+| **数据校验** | Pydantic v2 + pydantic-settings | — |
+| **认证** | JWT HS256 + python-jose | — |
+| **配置中心** | Nacos 2.x | nacos-sdk-python 3.2 |
+| **ASGI 服务器** | Uvicorn 0.32 | — |
 
 ---
 
 ## ⚡ 快速开始
 
-### 1. 获取代码
+### 1. 环境要求
+
+- Python 3.11+
+- PostgreSQL 15+（需安装 [pgvector](https://github.com/pgvector/pgvector) 扩展）
+- （可选）Nacos 2.x 配置中心
+
+### 2. 获取代码
 
 ```bash
 git clone https://github.com/ZebraOps/ZebraRAG.git
 cd ZebraRAG
 ```
 
-### 2. 安装依赖
+### 3. 安装依赖
 
 ```bash
 python -m venv venv
-source venv/bin/activate  # Linux/Mac
-# or
-venv\Scripts\activate.bat # Windows
+source venv/bin/activate       # Linux / Mac
 
 pip install -r requirements.txt
 ```
 
-### 3. 环境变量配置
+### 4. 配置环境变量
 
-在项目根目录创建 `.env` 文件：
+```bash
+cp .env.example .env   # 或直接编辑 .env
+```
+
+`.env` 关键配置：
 
 ```env
-# 数据库配置
+# 数据库
 PG_SERVER=localhost:5432
 PG_USER=postgres
 PG_PASSWORD=your_password
 PG_DB=zebra_rag
 
-# JWT 配置（须与 ZebraGateway 保持一致）
+# JWT（须与 ZebraGateway 保持一致）
 SECRET_KEY=Zu+1MV0HDNrXYGsGupBTUfAxHWfSfZ4xhLbc4fDALI8=
 ALGORITHM=HS256
 
-# 腾讯 CodingPlan API 配置
+# LLM — 腾讯 CodingPlan（对话用）
 LLM_PROVIDER=tencent
 OPENAI_API_KEY=sk-your-api-key
 OPENAI_API_BASE=https://api.lkeap.cloud.tencent.com/coding/v3
+LLM_API_ENDPOINT=https://api.lkeap.cloud.tencent.com/coding/v3
 LLM_MODEL=glm-5
-EMBEDDING_MODEL=glm-5
 
-# 可选：Nacos 配置中心
+# 嵌入 — 本地 BGE 模型（无需外部 API）
+EMBEDDING_PROVIDER=local
+EMBEDDING_MODEL=BAAI/bge-small-zh-v1.5
+EMBEDDING_DIMENSION=512
+EMBEDDING_API_BASE=
+
+# Nacos（可选）
 NACOS_SERVER_ADDR=localhost:8848
-NACOS_NAMESPACE=
-NACOS_USERNAME=nacos
-NACOS_PASSWORD=nacos
 ```
 
-> `SECRET_KEY` 须与 ZebraGateway 的 `JWTSecret` 保持一致。
+> ⚠️ `SECRET_KEY` 必须与 ZebraGateway 的 JWT 密钥一致，否则请求会被拦截。
 
-### 4. 初始化数据库
+### 5. 初始化数据库
 
 ```sql
--- 创建数据库
 CREATE DATABASE zebra_rag;
-
--- 连接数据库
 \c zebra_rag
-
--- 安装 pgvector 扩展
 CREATE EXTENSION IF NOT EXISTS vector;
-```
-
-### 5. 运行迁移
-
-```bash
-alembic upgrade head
 ```
 
 ### 6. 启动服务
@@ -129,24 +155,27 @@ alembic upgrade head
 ./start.sh
 ```
 
-启动脚本会自动：
-- 检查并创建虚拟环境
-- 安装依赖
-- 注入 Nacos 连接参数
-- 以 `127.0.0.1:4124` 启动 Uvicorn
+首次启动会自动：
+- 检查虚拟环境并安装依赖
+- 从 Nacos 拉取配置（如已连接）
+- 创建/更新数据库表（`Base.metadata.create_all`）
+- **预热嵌入模型**（首次下载约 55MB ONNX 模型，后续加载 < 1s）
+- 在 `127.0.0.1:4124` 启动 Uvicorn
 
-如果需要手动启动：
+手动启动：
 
 ```bash
 source venv/bin/activate
-venv/bin/python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 4124
+uvicorn app.main:app --reload --host 127.0.0.1 --port 4124
 ```
+
+启动成功后访问：
+- **API 文档**: http://localhost:4124/docs
+- **健康检查**: http://localhost:4124/health
 
 ---
 
 ## 🔧 Nacos 集成
-
-ZebraRAG 已接入 Nacos 2.x，用于统一配置管理和服务注册发现。
 
 ### 配置优先级
 
@@ -154,9 +183,9 @@ ZebraRAG 已接入 Nacos 2.x，用于统一配置管理和服务注册发现。
 Nacos 配置 > 本地 .env > 代码默认值
 ```
 
-### Nacos 配置项
+### Nacos 配置示例
 
-在 Nacos 中创建 `zebra-rag.yaml`（Group: DEFAULT_GROUP）：
+在 Nacos 控制台创建 `zebra-rag.yaml`（Group: `DEFAULT_GROUP`）：
 
 ```yaml
 database:
@@ -168,16 +197,19 @@ database:
 jwt:
   secret_key: Zu+1MV0HDNrXYGsGupBTUfAxHWfSfZ4xhLbc4fDALI8=
   algorithm: HS256
-  access_token_expire_minutes: 11520
 
 llm:
   provider: tencent
   api_key: sk-your-api-key
   api_base: https://api.lkeap.cloud.tencent.com/coding/v3
-  api_endpoint: https://api.lkeap.cloud.tencent.com/coding/anthropic
+  api_endpoint: https://api.lkeap.cloud.tencent.com/coding/v3
   model: glm-5
   embedding:
-    model: glm-5
+    provider: local
+    model: BAAI/bge-small-zh-v1.5
+    api_base: ""
+    batch_size: 100
+    dimension: 512
   chat:
     temperature: 0.7
     max_tokens: 2000
@@ -192,14 +224,7 @@ app:
   ip: 127.0.0.1
 ```
 
----
-
-## 🔗 API 文档
-
-启动服务后，访问以下 URL 查看 API 文档：
-
-- **Swagger UI**: [http://localhost:4124/docs](http://localhost:4124/docs)
-- **ReDoc**: [http://localhost:4124/redoc](http://localhost:4124/redoc)
+完整模板见 `config/zebra-rag-nacos.yaml`。
 
 ---
 
@@ -208,249 +233,180 @@ app:
 ```
 ZebraRAG/
 ├── app/
-│   ├── main.py                   # FastAPI 入口（lifespan、CORS、路由挂载）
-│   ├── api/                      # API 路由定义
-│   │   └── v1/
-│   │       ├── router.py         # 路由注册
-│   │       └── endpoints/        # API 端点
-│   │           ├── documents.py         # 文档管理 CRUD
-│   │           ├── collections.py       # 集合管理 CRUD
-│   │           └── query.py             # RAG 智能问答
-│   ├── core/                     # 核心配置
-│   │   ├── config.py             # pydantic-settings 配置
-│   │   ├── nacos_client.py       # Nacos 客户端
-│   │   └── rag/                  # RAG 核心模块
-│   │       ├── embeddings_tencent.py    # 腾讯 Embedding 服务
-│   │       ├── llm_client.py            # 腾讯 LLM 客户端
+│   ├── main.py                          # FastAPI 入口（lifespan、中间件、路由）
+│   ├── api/v1/
+│   │   ├── router.py                    # 路由注册
+│   │   └── endpoints/
+│   │       ├── documents.py             # 文档 CRUD（创建时自动分块+嵌入）
+│   │       ├── collections.py           # 集合管理
+│   │       └── query.py                 # RAG 智能问答
+│   ├── core/
+│   │   ├── config.py                    # pydantic-settings 配置管理
+│   │   ├── nacos_client.py             # Nacos 配置中心客户端
+│   │   └── rag/                         # RAG 核心引擎
+│   │       ├── pipeline.py              # 流水线编排（分块→嵌入→检索→生成）
 │   │       ├── chunking.py              # 文本分块策略
-│   │       ├── retrieval.py             # 向量检索服务
-│   │       └── pipeline.py              # RAG 管道编排
-│   ├── models/                   # SQLAlchemy ORM 模型
-│   │   ├── document.py           # Document, Chunk, Collection
-│   │   └── template.py           # IncidentTemplate, SOPTemplate
-│   ├── schemas/                  # Pydantic 请求/响应 Schema
-│   │   ├── response.py           # 统一响应格式
-│   │   └── document.py           # 文档相关 Schema
-│   ├── crud/                     # 数据访问层（CRUD 操作）
-│   └── db/                       # 数据库配置
-│       └── session.py            # AsyncSession 工厂
-├── migrations/                   # Alembic 数据库迁移
-│   └── versions/
-│       └── 001_initial.py        # 初始化表结构
+│   │       ├── retrieval.py             # pgvector 向量检索（raw SQL + L2距离）
+│   │       ├── embeddings_local.py      # 本地 BGE 嵌入（fastembed + ONNX）
+│   │       ├── embeddings_tencent.py    # 腾讯远程嵌入（备用，当前不可用）
+│   │       ├── embeddings.py            # OpenAI 兼容嵌入（备用）
+│   │       └── llm_client.py            # glm-5 LLM 客户端
+│   ├── models/
+│   │   ├── document.py                  # Document / Chunk / Collection ORM
+│   │   └── template.py                  # IncidentTemplate / SOPTemplate
+│   ├── schemas/
+│   │   ├── response.py                  # 统一响应格式
+│   │   └── document.py                  # 文档 / 查询 Schema
+│   ├── db/
+│   │   └── session.py                   # AsyncSession 工厂
+│   └── crud/                            # 数据访问层（预留）
+├── migrations/versions/
+│   ├── 001_initial.py                   # 初始化表结构（Vector(1536)）
+│   └── 002_change_embedding_dimension.py # 切换本地模型（Vector(1536)→Vector(512)）
 ├── config/
-│   └── nacos_config_template.yaml # Nacos 配置模板
-├── alembic.ini                   # Alembic 配置文件
-├── requirements.txt              # Python 依赖清单
-├── .env                          # 环境变量配置（不入 git）
-├── start.sh                      # 启动脚本
-└── README.md                     # 项目文档
+│   ├── zebra-rag-nacos.yaml            # Nacos 完整配置模板
+│   └── nacos_config_template.yaml      # Nacos 精简模板
+├── requirements.txt                     # Python 依赖
+├── .env                                 # 环境变量（不入 git）
+├── start.sh                             # 启动脚本
+├── LICENSE
+└── README.md
 ```
 
 ---
 
-## 📋 功能模块
+## 📊 数据模型
 
-### 📄 文档管理
+### 核心表关系
 
-- 文档 CRUD（创建、读取、更新、删除）
-- 四类文档类型：incident(故障案例)、sop(标准流程)、guide(指南)、best_practice(最佳实践)
-- 严重程度标签（P0/P1/P2/P3）
-- 受影响系统标记
-- 灵活标签体系
+```
+┌─────────────┐       ┌─────────────┐       ┌─────────────┐
+│  Collection │ 1──N │  Document   │ 1──N │    Chunk     │
+│             │       │             │       │              │
+│ name        │       │ title       │       │ content      │
+│ desc        │       │ doc_type    │       │ chunk_index  │
+│ emb_model   │       │ severity    │       │ embedding    │
+│ chunk_*     │       │ tags        │       │   Vector(512)│
+└─────────────┘       │ collection  │       │ doc_id (FK)  │
+                      └─────────────┘       └─────────────┘
+```
 
-### 🗂️ 集合管理
+### Chunk 表（向量存储核心）
 
-- 知识集合创建与配置
-- 集合级别嵌入模型配置
-- 分块参数设置（chunk_size、overlap）
-- 多租户组织隔离
-
-### 🔍 RAG 智能问答
-
-- 向量相似度检索（pgvector）
-- 上下文组装与 LLM 生成
-- 查询历史记录
-- 支持集合和文档类型过滤
-
-### 🧠 智能分块
-
-- 句子边界分块（保持语义完整）
-- Markdown 专用分块（识别标题、代码块）
-- 可配置分块大小和重叠度
+| 列 | 类型 | 说明 |
+|---|---|---|
+| chunk_id | Integer PK | 主键 |
+| doc_id | Integer FK | 关联文档 |
+| collection_id | Integer | 关联集合 |
+| content | Text | 分块文本 |
+| chunk_index | Integer | 分块序号 |
+| **embedding** | **Vector(512)** | **BGE 嵌入向量（L2归一化）** |
+| chunk_metadata | JSON | 元数据 |
+| ctime | DateTime | 创建时间 |
 
 ---
 
-## 📊 数据库设计
+## 📝 API 一览
 
-### 核心表结构
-
-#### Collection（知识集合）
-```python
-collection_id: 主键
-name: 集合名称
-description: 描述
-embedding_model: 嵌入模型（默认 text-embedding-3-small）
-chunk_size: 分块大小（默认 500）
-chunk_overlap: 重叠大小（默认 50）
-org_id: 组织 ID（多租户）
-```
-
-#### Document（文档表）
-```python
-doc_id: 主键
-title: 标题
-content: 内容
-doc_type: 文档类型（incident/sop/guide/best_practice）
-status: 状态（draft/published/archived）
-severity: 严重程度（P0/P1/P2/P3）
-affected_systems: 受影响系统（JSON）
-tags: 标签（JSON）
-org_id: 组织 ID
-author_id: 作者 ID
-collection_id: 集合 ID
-version: 版本号
-```
-
-#### Chunk（分块表）
-```python
-chunk_id: 主键
-doc_id: 文档 ID（外键）
-collection_id: 集合 ID
-content: 分块内容
-chunk_index: 分块顺序
-embedding: Vector(1536)  # pgvector 向量列
-chunk_metadata: 元数据（JSON）
-```
-
-#### QueryHistory（查询历史）
-```python
-query_id: 主键
-user_id: 用户 ID
-query_text: 查询文本
-answer_text: 答案文本
-source_docs: 来源文档列表
-```
-
----
-
-## 📝 API 路由一览
-
-| 前缀 | 说明 |
-|------|------|
-| `POST /api/documents` | 创建文档 |
-| `GET /api/documents` | 文档列表（支持过滤） |
-| `GET /api/documents/{id}` | 文档详情 |
-| `PUT /api/documents/{id}` | 更新文档 |
-| `DELETE /api/documents/{id}` | 删除文档 |
-| `POST /api/collections` | 创建集合 |
-| `GET /api/collections` | 集合列表 |
-| `PUT /api/collections/{id}` | 更新集合 |
-| `DELETE /api/collections/{id}` | 删除集合 |
-| `POST /api/query` | RAG 智能问答 |
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| `POST` | `/api/documents` | 创建文档（自动分块+嵌入） |
+| `GET` | `/api/documents` | 文档列表（支持类型/状态/集合过滤） |
+| `GET` | `/api/documents/{id}` | 文档详情 |
+| `PUT` | `/api/documents/{id}` | 更新文档 |
+| `DELETE` | `/api/documents/{id}` | 删除文档 |
+| `POST` | `/api/collections` | 创建知识集合 |
+| `GET` | `/api/collections` | 集合列表 |
+| `PUT` | `/api/collections/{id}` | 更新集合 |
+| `DELETE` | `/api/collections/{id}` | 删除集合 |
+| `POST` | `/api/query` | RAG 智能问答 |
+| `GET` | `/health` | 健康检查 |
 
 ---
 
 ## 📝 使用示例
 
-### 1. 📄 创建故障案例文档
+### 创建文档
 
 ```bash
 curl -X POST http://localhost:4124/api/documents \
   -H "Content-Type: application/json" \
   -H "X-User-Id: 1" \
   -d '{
-    "title": "Kubernetes Pod 启动失败排查",
-    "content": "故障现象：Pod 状态一直为 ContainerCreating...\n排查步骤：1. 检查镜像是否存在 2. 查看 events 日志 3. 检查资源配额",
-    "doc_type": "incident",
+    "title": "Nginx 监控报警：拉黑攻击 IP",
+    "content": "1. 根据告警日志中的 URI 查找对应 IP；\n2. 登录 CDN 控制台 → 域名 → 访问控制 → 添加黑名单；\n3. 内网 IP 需进一步查找真实 IP。",
+    "doc_type": "sop",
     "severity": "P1",
-    "affected_systems": ["kubernetes", "docker"],
-    "tags": ["容器", "编排", "启动失败"]
+    "tags": ["Nginx", "安全", "CDN"],
+    "affected_systems": ["Nginx", "CDN"]
   }'
 ```
 
-### 2. 🔍 RAG 智能查询
+### RAG 问答
 
 ```bash
 curl -X POST http://localhost:4124/api/query \
   -H "Content-Type: application/json" \
   -H "X-User-Id: 1" \
   -d '{
-    "question": "Kubernetes Pod 启动失败怎么排查？",
+    "question": "Nginx 监控报警后如何拉黑 IP？",
     "top_k": 5
   }'
 ```
 
-**响应示例：**
+响应示例：
+
 ```json
 {
   "code": 200,
   "message": "Success",
   "data": {
-    "answer": "根据知识库，Kubernetes Pod 启动失败的排查步骤如下：1. 检查镜像是否存在 2. 查看 events 日志 3. 检查资源配额...",
+    "answer": "根据知识库，处理 Nginx 监控报警并拉黑 IP 的步骤如下：\n1. 根据告警日志中的 URI 查找对应 IP 地址\n2. 登录 CDN 控制台，进入域名 → 访问控制，将 IP 添加到黑名单\n3. 如果是内网 IP，需要根据请求地址进一步查找真实 IP",
     "sources": [
       {
         "doc_id": 1,
-        "content": "故障现象：Pod 状态一直为 ContainerCreating...",
+        "content": "1. 根据告警日志中请求的uri地址...",
         "chunk_index": 0
       }
     ],
-    "query_id": 123
+    "query_id": 42
   }
 }
 ```
 
-### 3. 🗂️ 创建知识集合
+---
 
-```bash
-curl -X POST http://localhost:4124/api/collections \
-  -H "Content-Type: application/json" \
-  -H "X-User-Id: 1" \
-  -d '{
-    "name": "运维故障案例库",
-    "description": "存储生产环境故障案例和解决方案",
-    "chunk_size": 500,
-    "chunk_overlap": 50
-  }'
-```
+## 📈 性能参考
+
+| 操作 | 耗时 | 说明 |
+|------|------|------|
+| 嵌入模型加载 | < 1s（缓存）/ ~6s（首次下载） | 启动时预热，查询不等待 |
+| 文本嵌入（512 token） | ~50ms | 本地 ONNX 推理 |
+| 向量检索 | < 10ms | pgvector IVFFlat 索引 |
+| LLM 生成 | 1-3s | 依赖腾讯 API 响应 |
+| 创建文档 | 0.5-2s | 含分块 + 嵌入 |
+| RAG 查询 | 1-4s | 嵌入 + 检索 + LLM |
 
 ---
 
-## 🌐 与其他 Zebra 服务的关系
+## 🌐 与 Zebra 生态的关系
 
 ```
-ZebraAdmin (React 19)         ← 前端管理界面
-    │  Ant Design 5 + TailwindCSS 4
-    │
-    │  HTTP (所有请求经过网关)
-    ▼
-ZebraGateway (Go + Gin)       ← API 网关
-    │  JWT 验证 + 权限校验
-    │  动态路由代理
-    │
-    ├──► ZebraRBAC (Python)       ← 权限管理中心
-    │
-    ├──► ZebraCICD (Go)           ← CI/CD 管理
-    │
-    └──► ZebraRAG (本项目)        ← RAG 知识库服务
-         Python 3.11 + FastAPI 0.115
-         PostgreSQL + pgvector
-         腾讯 CodingPlan glm-5
+ZebraAdmin (:4120) ──▶ ZebraGateway (:4121) ──▶ ZebraRBAC (:4122)
+                           │                    权限/用户/菜单
+                           │
+                           ├──▶ ZebraCICD (:4123)
+                           │    CI/CD 管理
+                           │
+                           └──▶ ZebraRAG (:4124)  ← 本项目
+                                知识库 / 智能问答
 
-ZebraDeployment               ← Docker Compose 基础设施
-    ├── PostgreSQL 17          ← 数据持久化
-    │   ├── zebra_rbac
-    │   ├── zebra_gateway
-    │   └── zebra_rag          ← RAG 知识库数据
-    ├── GitLab CE 18.5
-    ├── Jenkins 2.506
-    └── Harbor 2.13
+ZebraDeployment: PostgreSQL + GitLab + Jenkins + Harbor
 ```
 
-### 集成方式
+### Gateway 路由配置
 
-#### ZebraGateway 路由配置
-
-在 `ZebraGateway/config/configs.yaml` 添加：
+`ZebraGateway/config/configs.yaml`：
 
 ```yaml
 services:
@@ -459,89 +415,45 @@ services:
     rewrite: "/api"
 ```
 
-#### RBAC 权限配置
-
-在 ZebraRBAC 数据库添加函数权限：
-
-```sql
-INSERT INTO functions (func_name, uri, method_type, status) VALUES
-('rag_document_list', '/rag/documents', 'GET', '0'),
-('rag_document_create', '/rag/documents', 'POST', '0'),
-('rag_query', '/rag/query', 'POST', '0');
-```
-
 ---
 
-## 📈 性能指标
+## ⚠️ 注意事项
 
-### API 响应时间（预估）
-
-| 操作 | 响应时间 | 说明 |
-|------|---------|------|
-| 创建文档 | 1-3 秒 | 含嵌入处理 |
-| 文档列表 | <100ms | 数据库查询 |
-| RAG 查询 | 2-5 秒 | 向量检索 + LLM 生成 |
-| 健康检查 | <50ms | 状态检查 |
-
-### 资源规划
-
-| 资源 | 最小配置 | 推荐配置 |
-|------|---------|---------|
-| CPU | 2 核 | 4 核+ |
-| 内存 | 4 GB | 8 GB+ |
-| 存储 | 20 GB | 100 GB+ |
-| 数据库 | 单节点 | 主从复制 |
-
----
-
-## 📌 注意事项
-
-- 需要 **Python 3.11+** 及以上版本
-- 使用 **PostgreSQL 15+** 数据库，需安装 **pgvector 扩展**
-- **`SECRET_KEY` 必须与 ZebraGateway 的 `JWTSecret` 保持一致**
-- 生产环境请修改 `.env` 文件中的敏感信息（API 密钥、数据库密码等）
-- 腾讯 CodingPlan API 需要有效的 API Key
-- 所有 API 请求需通过 ZebraGateway，请求头包含 `X-User-Id` 和 `X-User-Name`
-- 默认嵌入向量维度：1536（glm-5 模型）
+- **嵌入模型首次下载**：首次启动会从 HuggingFace 下载 ONNX 模型（~55MB），需确保网络畅通。如遇代理问题，设置 `ALL_PROXY=` 临时绕过
+- **LLM 依赖外部 API**：腾讯 CodingPlan glm-5 需要有效的 API Key，网络需可达 `api.lkeap.cloud.tencent.com`
+- **pgvector `<=>` 兼容性**：pgvector 0.6 + asyncpg 0.30 的余弦距离运算符 `<=>` 存在兼容问题，当前使用 `<->`（L2 距离）替代。嵌入向量已做 L2 归一化，排序结果与余弦距离等价
+- **JWT 密钥一致性**：`SECRET_KEY` 必须与 ZebraGateway 完全一致
+- **请求头注入**：前后端分离场景，需 ZebraGateway 注入 `X-User-Id` / `X-User-Name`
+- **数据库表**：`Base.metadata.create_all` 只创建新表，不修改已有列。如需修改列类型（如 Vector 维度变更），需手动执行 SQL 或用 Alembic 迁移
 
 ---
 
 ## ☑️ 待办事项
 
-- [ ] 前端界面开发（文档管理、问答 UI）
 - [ ] 查询缓存（Redis 集成）
-- [ ] 批量文档处理优化
-- [ ] SOP 模板渲染功能（变量替换）
-- [ ] 知识统计和分析
-- [ ] 监控告警集成（Prometheus）
-- [ ] 完善单元测试覆盖率
-- [ ] 知识图谱构建
-- [ ] 多模态支持（图片、日志）
-- [ ] 本地模型支持（Ollama 集成）
+- [ ] 批量文档导入
+- [ ] SOP 模板变量渲染
+- [ ] 混合检索（BM25 + 向量）
+- [ ] Reranker 重排序
+- [ ] 向量索引 HNSW 切换
+- [ ] Prometheus 监控指标
+- [ ] 单元测试 + 集成测试
+- [ ] 多模态支持（图片、日志文件）
 
 ---
 
-## 🤝 贡献指南
+## 🤝 贡献
 
-欢迎任何形式的贡献！如果你有建议或发现 bug，请提交 Issue。  
-如果你想提交代码改进，请：
+欢迎提交 Issue 和 Pull Request！
 
 1. Fork 本仓库
-2. 创建功能分支 (`git checkout -b feature/AmazingFeature`)
-3. 提交更改 (`git commit -m 'Add some AmazingFeature'`)
-4. 推送到分支 (`git push origin feature/AmazingFeature`)
-5. 提交 Pull Request
-
----
-
-## 💬 联系方式
-
-- **提交问题**：请使用 GitHub Issues
-- **讨论建议**：欢迎在 GitHub Discussions 中参与交流
-- **贡献反馈**：感谢任何形式的 Pull Request
+2. 创建分支：`git checkout -b feature/xxx`
+3. 提交：`git commit -m 'feat: xxx'`
+4. 推送：`git push origin feature/xxx`
+5. 创建 Pull Request
 
 ---
 
 ## 📄 License
 
-本项目采用 MIT 许可证，详见 [LICENSE](./LICENSE) 文件。
+MIT © [ZebraOps](https://github.com/ZebraOps)
