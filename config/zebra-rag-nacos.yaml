@@ -1,0 +1,254 @@
+# ============================================================
+# ZebraRAG Nacos配置文件
+# Data ID: zebra-rag.yaml
+# Group: DEFAULT_GROUP
+# 说明：此配置文件包含所有环境变量，上传到Nacos即可使用
+# ============================================================
+
+# 应用配置
+app:
+  name: "ZebraRAG"
+  version: "1.0.0"
+  port: 4124
+  ip: "127.0.0.1"
+
+# 数据库配置
+database:
+  server: "192.168.192.87:5432"
+  user: "postgres"
+  password: "postgres123"
+  database: "zebra_rag"
+
+  # PostgreSQL连接池配置
+  pool:
+    pool_size: 10
+    max_overflow: 20
+    pool_timeout: 30
+    pool_recycle: 3600
+
+# JWT认证配置（必须与ZebraGateway和ZebraRBAC保持一致）
+jwt:
+  secret_key: "Zu+1MV0HDNrXYGsGupBTUfAxHWfSfZ4xhLbc4fDALI8="
+  algorithm: "HS256"
+  access_token_expire_minutes: 11520  # 8天
+
+# 腾讯CodingPlan LLM配置
+llm:
+  provider: "tencent"
+
+  # API基础配置
+  api_key: "sk-sp-QzpR0qsiuiBM5QBmJSG5Mdxi6mWPBlWybWhuoWmlrfbGeh6I"
+  api_base: "https://api.lkeap.cloud.tencent.com/coding/v3"
+  api_endpoint: "https://api.lkeap.cloud.tencent.com/coding/anthropic"
+
+  # 模型配置
+  model: "glm-5"
+
+  # 嵌入模型配置
+  embedding:
+    model: "glm-5"
+    batch_size: 100
+    retry_times: 3
+    timeout: 30
+    dimension: 1536  # glm-5嵌入维度
+
+  # 对话模型配置
+  chat:
+    model: "glm-5"
+    temperature: 0.7
+    max_tokens: 2000
+    top_p: 1.0
+    frequency_penalty: 0.0
+    presence_penalty: 0.0
+
+  # 限流配置
+  rate_limit:
+    requests_per_minute: 60
+    tokens_per_minute: 40000
+
+# RAG配置
+rag:
+  # 文本分块配置
+  chunk_size: 500
+  chunk_overlap: 50
+
+  # 检索配置
+  top_k: 10
+  min_score: 0.7  # 相似度阈值（0-1）
+
+  # 向量索引配置
+  vector_index:
+    type: "ivfflat"  # ivfflat, hnsw
+    lists: 100  # IVFFlat参数
+    m: 16  # HNSW参数
+    ef_construction: 64  # HNSW参数
+
+  # 上下文组装配置
+  context:
+    max_tokens: 3000
+    include_metadata: true
+
+# Nacos配置中心配置
+nacos:
+  server_addr: "localhost:8848"
+  namespace: ""  # 空为public命名空间
+  group: "DEFAULT_GROUP"
+  data_id: "zebra-rag.yaml"
+  username: "nacos"
+  password: "nacos"
+
+  # 配置刷新
+  auto_refresh: true
+  refresh_interval: 30000  # 30秒
+
+# 服务注册配置（可选）
+service:
+  register_enabled: false  # 是否注册到Nacos
+  service_name: "zebra-rag"
+  service_ip: "127.0.0.1"
+  service_port: 4124
+  weight: 1.0
+  metadata:
+    version: "1.0.0"
+    description: "ZebraRAG Knowledge Base Service"
+
+# 日志配置
+logging:
+  level: "INFO"  # DEBUG, INFO, WARNING, ERROR
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+
+  # 日志输出配置
+  output:
+    - "stdout"  # 控制台输出
+    - "./logs/zebra-rag.log"  # 文件输出
+
+  # 日志轮转配置
+  rotation:
+    max_size: 10485760  # 10MB
+    max_age: 30  # 30天
+    max_backups: 10
+    compress: true
+
+# CORS跨域配置
+cors:
+  allow_origins:
+    - "*"  # 生产环境建议配置具体域名
+  allow_credentials: true
+  allow_methods:
+    - "*"
+  allow_headers:
+    - "*"
+
+# 缓存配置（可选）
+cache:
+  enabled: false
+  type: "redis"  # redis, memcached
+  redis:
+    host: "localhost"
+    port: 6379
+    db: 0
+    password: ""
+    pool_size: 10
+
+# 监控配置
+monitoring:
+  enabled: false
+  prometheus:
+    enabled: false
+    port: 9090
+    path: "/metrics"
+
+  # 健康检查
+  health_check:
+    enabled: true
+    path: "/health"
+
+# 文档上传配置
+upload:
+  max_file_size: 10485760  # 10MB
+  allowed_extensions:
+    - ".txt"
+    - ".md"
+    - ".pdf"
+    - ".doc"
+    - ".docx"
+
+  # 存储路径
+  storage_path: "./uploads"
+
+# API限流配置
+rate_limit:
+  enabled: true
+  requests_per_minute: 100
+  requests_per_hour: 1000
+
+# 安全配置
+security:
+  # API密钥白名单（可选）
+  api_key_whitelist:
+    - "sk-sp-*"  # 腾讯CodingPlan密钥前缀
+
+  # IP白名单（可选）
+  ip_whitelist:
+    - "127.0.0.1"
+    - "192.168.*.*"
+
+  # SQL注入防护
+  sql_injection_protection: true
+
+  # XSS防护
+  xss_protection: true
+
+# 多租户配置
+multitenancy:
+  enabled: true
+  tenant_field: "org_id"  # 租户字段
+
+  # 数据隔离策略
+  isolation:
+    type: "shared_database"  # shared_database, separate_database
+    schema_per_tenant: false
+
+# 性能优化配置
+performance:
+  # 异步处理
+  async_enabled: true
+  max_workers: 10
+
+  # 批处理配置
+  batch:
+    embedding_batch_size: 100
+    document_batch_size: 50
+
+  # 连接池
+  connection_pool:
+    max_connections: 100
+    min_connections: 10
+
+# 环境标识
+environment:
+  name: "production"  # development, staging, production
+  debug: false
+  testing: false
+
+# 特性开关
+features:
+  enable_query_history: true
+  enable_document_versioning: true
+  enable_auto_indexing: true
+  enable_sop_templates: true
+  enable_incident_templates: true
+
+# 国际化配置
+i18n:
+  default_language: "zh-CN"
+  supported_languages:
+    - "zh-CN"
+    - "en-US"
+
+# 备份配置
+backup:
+  enabled: false
+  schedule: "0 2 * * *"  # 每天凌晨2点
+  retention_days: 30
+  storage_path: "./backups"

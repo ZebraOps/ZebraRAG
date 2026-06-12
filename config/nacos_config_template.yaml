@@ -1,0 +1,67 @@
+# ZebraRAG Nacos配置模板
+# 将此配置上传到Nacos配置中心
+
+# 应用配置
+app:
+  name: "ZebraRAG"
+  version: "1.0.0"
+  port: 4124
+
+# 数据库配置
+database:
+  server: "192.168.192.87:5432"
+  user: "postgres"
+  password: "postgres123"
+  database: "zebra_rag"
+
+# JWT配置（必须与ZebraGateway和ZebraRBAC一致）
+jwt:
+  secret_key: "Zu+1MV0HDNrXYGsGupBTUfAxHWfSfZ4xhLbc4fDALI8="
+  algorithm: "HS256"
+  access_token_expire_minutes: 11520
+
+# 腾讯CodingPlan API配置
+llm:
+  provider: "tencent"  # openai, tencent, deepseek
+  api_key: "sk-sp-QzpR0qsiuiBM5QBmJSG5Mdxi6mWPBlWybWhuoWmlrfbGeh6I"
+  api_base: "https://api.lkeap.cloud.tencent.com/coding/v3"
+  api_endpoint: "https://api.lkeap.cloud.tencent.com/coding/anthropic"
+  model: "glm-5"
+
+  # 嵌入模型配置
+  embedding:
+    model: "glm-5"  # 腾讯使用同一模型
+    batch_size: 100
+    retry_times: 3
+    timeout: 30
+
+  # 对话模型配置
+  chat:
+    model: "glm-5"
+    temperature: 0.7
+    max_tokens: 2000
+    top_p: 1.0
+
+# RAG配置
+rag:
+  chunk_size: 500
+  chunk_overlap: 50
+  top_k: 10
+  min_score: 0.7  # 相似度阈值
+
+# 服务注册配置
+nacos:
+  server_addr: "localhost:8848"
+  namespace: ""
+  group: "DEFAULT_GROUP"
+  data_id: "zebra-rag.yaml"
+  username: "nacos"
+  password: "nacos"
+
+# 日志配置
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  output:
+    - "stdout"
+    - "./logs/zebra-rag.log"
