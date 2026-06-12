@@ -39,18 +39,18 @@ llm:
   # API基础配置
   api_key: "sk-sp-QzpR0qsiuiBM5QBmJSG5Mdxi6mWPBlWybWhuoWmlrfbGeh6I"
   api_base: "https://api.lkeap.cloud.tencent.com/coding/v3"
-  api_endpoint: "https://api.lkeap.cloud.tencent.com/coding/anthropic"
+  api_endpoint: "https://api.lkeap.cloud.tencent.com/coding/v3"
 
   # 模型配置
   model: "glm-5"
 
-  # 嵌入模型配置
+  # 嵌入模型配置（本地 BGE 模型，无需外部 API）
   embedding:
-    model: "glm-5"
+    provider: "local"
+    model: "BAAI/bge-small-zh-v1.5"
+    api_base: ""
     batch_size: 100
-    retry_times: 3
-    timeout: 30
-    dimension: 1536  # glm-5嵌入维度
+    dimension: 512  # BGE-small-zh-v1.5 嵌入维度
 
   # 对话模型配置
   chat:
@@ -74,7 +74,6 @@ rag:
 
   # 检索配置
   top_k: 10
-  min_score: 0.7  # 相似度阈值（0-1）
 
   # 向量索引配置
   vector_index:

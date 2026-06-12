@@ -20,20 +20,21 @@ jwt:
   algorithm: "HS256"
   access_token_expire_minutes: 11520
 
-# 腾讯CodingPlan API配置
+# 腾讯CodingPlan API配置（LLM对话）
 llm:
   provider: "tencent"  # openai, tencent, deepseek
   api_key: "sk-sp-QzpR0qsiuiBM5QBmJSG5Mdxi6mWPBlWybWhuoWmlrfbGeh6I"
   api_base: "https://api.lkeap.cloud.tencent.com/coding/v3"
-  api_endpoint: "https://api.lkeap.cloud.tencent.com/coding/anthropic"
+  api_endpoint: "https://api.lkeap.cloud.tencent.com/coding/v3"
   model: "glm-5"
 
-  # 嵌入模型配置
+  # 嵌入模型配置（本地 BGE 模型，无需外部 API）
   embedding:
-    model: "glm-5"  # 腾讯使用同一模型
+    provider: "local"
+    model: "BAAI/bge-small-zh-v1.5"
+    api_base: ""
     batch_size: 100
-    retry_times: 3
-    timeout: 30
+    dimension: 512  # BGE-small-zh-v1.5 嵌入维度
 
   # 对话模型配置
   chat:
@@ -47,7 +48,6 @@ rag:
   chunk_size: 500
   chunk_overlap: 50
   top_k: 10
-  min_score: 0.7  # 相似度阈值
 
 # 服务注册配置
 nacos:
