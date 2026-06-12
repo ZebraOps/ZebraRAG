@@ -6,7 +6,7 @@ from typing import List, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Chunk, Document, QueryHistory
-from app.core.rag.embeddings_tencent import get_embedding_service
+from app.core.rag.embeddings_local import get_embedding_service
 from app.core.rag.chunking import get_text_chunker
 from app.core.rag.retrieval import get_retrieval_service
 from app.core.rag.llm_client import get_llm_client

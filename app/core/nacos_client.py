@@ -253,7 +253,10 @@ class ConfigManager:
             'api_endpoint': os.getenv('LLM_API_ENDPOINT', 'https://api.lkeap.cloud.tencent.com/coding/anthropic'),
             'model': os.getenv('LLM_MODEL', 'glm-5'),
             'embedding': {
-                'model': os.getenv('EMBEDDING_MODEL', 'glm-5'),
+                'provider': os.getenv('EMBEDDING_PROVIDER', 'local'),
+                'model': os.getenv('EMBEDDING_MODEL', 'BAAI/bge-small-zh-v1.5'),
+                'api_base': os.getenv('EMBEDDING_API_BASE', ''),
+                'dimension': int(os.getenv('EMBEDDING_DIMENSION', '512')),
                 'batch_size': int(os.getenv('EMBEDDING_BATCH_SIZE', '100')),
             },
             'chat': {

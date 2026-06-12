@@ -34,9 +34,20 @@ async def lifespan(app: FastAPI):
     async with async_engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
+    # 预热嵌入模型（首次下载约 100MB，后续从缓存加载约 1-2 秒）
+    try:
+        from app.core.rag.embeddings_local import get_embedding_service
+        logger.info("⏳ 预热本地嵌入模型（首次下载约需 30s）...")
+        svc = get_embedding_service()
+        await svc.embed_text("预热")  # 触发模型加载
+        logger.info("✅ 嵌入模型预热完成")
+    except Exception as e:
+        logger.warning(f"⚠️ 嵌入模型预热失败（首次查询时会重试）: {e}")
+
     logger.info(f"🚀 ZebraRAG服务启动成功，端口: {settings.SERVICE_PORT}")
     logger.info(f"📚 访问地址: http://{settings.SERVICE_IP}:{settings.SERVICE_PORT}")
-    logger.info(f"🔑 API Base: {settings.OPENAI_API_BASE}")
+    logger.info(f"🔑 LLM API: {settings.LLM_API_ENDPOINT}")
+    logger.info(f"🧠 嵌入模型: {settings.EMBEDDING_MODEL} (本地)")
 
     yield
 

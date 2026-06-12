@@ -84,8 +84,8 @@ class Chunk(Base):
     content = Column(Text, nullable=False)
     chunk_index = Column(Integer)  # 分块顺序
 
-    # 向量嵌入（OpenAI embedding维度：1536）
-    embedding = Column(Vector(1536))
+    # 向量嵌入（BGE-small-zh-v1.5 维度：512）
+    embedding = Column(Vector(512))
 
     # 元数据（改名为chunk_metadata避免与SQLAlchemy的metadata冲突）
     chunk_metadata = Column(JSON)  # {"page": 1, "section": "概述"}

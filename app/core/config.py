@@ -28,7 +28,12 @@ class Settings(BaseSettings):
     OPENAI_API_BASE: str = Field(default="https://api.lkeap.cloud.tencent.com/coding/v3")
     LLM_API_ENDPOINT: str = Field(default="https://api.lkeap.cloud.tencent.com/coding/anthropic")
     LLM_MODEL: str = Field(default="glm-5")
-    EMBEDDING_MODEL: str = Field(default="glm-5")
+
+    # 嵌入配置（本地 BGE 模型）
+    EMBEDDING_PROVIDER: str = Field(default="local")
+    EMBEDDING_MODEL: str = Field(default="BAAI/bge-small-zh-v1.5")
+    EMBEDDING_DIMENSION: int = Field(default=512)
+    EMBEDDING_API_BASE: str = Field(default="")
 
     # LLM参数
     LLM_TEMPERATURE: float = Field(default=0.7)
@@ -82,7 +87,10 @@ class Settings(BaseSettings):
         self.OPENAI_API_BASE = config_manager.get('llm.api_base', self.OPENAI_API_BASE)
         self.LLM_API_ENDPOINT = config_manager.get('llm.api_endpoint', self.LLM_API_ENDPOINT)
         self.LLM_MODEL = config_manager.get('llm.model', self.LLM_MODEL)
+        self.EMBEDDING_PROVIDER = config_manager.get('llm.embedding.provider', self.EMBEDDING_PROVIDER)
         self.EMBEDDING_MODEL = config_manager.get('llm.embedding.model', self.EMBEDDING_MODEL)
+        self.EMBEDDING_API_BASE = config_manager.get('llm.embedding.api_base', self.EMBEDDING_API_BASE)
+        self.EMBEDDING_DIMENSION = config_manager.get('llm.embedding.dimension', self.EMBEDDING_DIMENSION)
         self.LLM_TEMPERATURE = config_manager.get('llm.chat.temperature', self.LLM_TEMPERATURE)
         self.LLM_MAX_TOKENS = config_manager.get('llm.chat.max_tokens', self.LLM_MAX_TOKENS)
 

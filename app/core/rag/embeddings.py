@@ -16,7 +16,7 @@ class EmbeddingService:
         settings = get_settings()
         self.client = AsyncOpenAI(
             api_key=settings.OPENAI_API_KEY,
-            base_url=settings.OPENAI_API_BASE
+            base_url=settings.EMBEDDING_API_BASE
         )
         self.model = settings.EMBEDDING_MODEL
 

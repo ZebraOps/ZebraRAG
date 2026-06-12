@@ -2,7 +2,7 @@
 文档管理API端点
 """
 from typing import List, Optional
-from fastapi import APIRouter, Depends, Request, Query
+from fastapi import APIRouter, Depends, Request, Query, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 
@@ -16,7 +16,10 @@ from app.schemas import (
     DocumentUpdate,
     DocumentResponse
 )
+from app.core.rag.pipeline import rag_pipeline
+import logging
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
@@ -26,7 +29,7 @@ async def create_document(
     data: DocumentCreate,
     db: AsyncSession = Depends(get_async_db)
 ):
-    """创建文档"""
+    """创建文档（自动分块 + 向量嵌入）"""
     # 从请求状态中获取用户ID
     user_id = request.state.user_id
 
@@ -47,6 +50,16 @@ async def create_document(
     db.add(doc)
     await db.commit()
     await db.refresh(doc)
+
+    # 触发 RAG 流水线：分块 + 向量嵌入
+    # 放在 try 中，嵌入失败不影响文档创建
+    try:
+        # collection_id 默认用文档自身的 collection_id，否则用 0（不关联集合）
+        col_id = data.collection_id or 0
+        chunks = await rag_pipeline.process_document(doc, col_id, db)
+        logger.info(f"文档 {doc.doc_id} 处理完成: {len(chunks)} 个分块")
+    except Exception as e:
+        logger.error(f"文档 {doc.doc_id} 嵌入处理失败: {e}")
 
     return ResponseModel(data=DocumentResponse.model_validate(doc))
 

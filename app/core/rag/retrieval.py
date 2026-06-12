@@ -26,7 +26,7 @@ class RetrievalService:
         db: AsyncSession = None
     ) -> List[Chunk]:
         """
-        向量相似度检索
+        向量相似度检索（使用 raw SQL 避免 asyncpg + ORM text() 兼容问题）
 
         Args:
             query_embedding: 查询向量
@@ -41,32 +41,58 @@ class RetrievalService:
         if top_k is None:
             top_k = self.top_k
 
-        # 构建查询
-        query = select(Chunk)
-
-        # 添加过滤条件
-        if collection_ids:
-            query = query.where(Chunk.collection_id.in_(collection_ids))
-
-        # 如果需要按文档类型过滤，需要先查询文档表
-        if doc_types:
-            doc_query = select(Document.doc_id).where(Document.doc_type.in_(doc_types))
-            result = await db.execute(doc_query)
-            doc_ids = [row[0] for row in result.fetchall()]
-            if doc_ids:
-                query = query.where(Chunk.doc_id.in_(doc_ids))
-
-        # 向量相似度计算（pgvector）
-        # 使用余弦相似度
+        # 构建查询向量字符串
         vector_str = "[" + ",".join(str(v) for v in query_embedding) + "]"
 
-        # 按相似度排序并限制数量
-        query = query.order_by(
-            text(f"embedding <=> '{vector_str}'::vector")
-        ).limit(top_k)
+        # 构建过滤条件
+        where_clauses = []
+        params = {}
 
-        result = await db.execute(query)
-        chunks = result.scalars().all()
+        if collection_ids:
+            placeholders = ", ".join([f":col_{i}" for i in range(len(collection_ids))])
+            where_clauses.append(f"c.collection_id IN ({placeholders})")
+            for i, cid in enumerate(collection_ids):
+                params[f"col_{i}"] = cid
+
+        if doc_types:
+            placeholders = ", ".join([f":dt_{i}" for i in range(len(doc_types))])
+            where_clauses.append(f"d.doc_type IN ({placeholders})")
+            for i, dt in enumerate(doc_types):
+                params[f"dt_{i}"] = dt
+
+        where_sql = ("WHERE " + " AND ".join(where_clauses)) if where_clauses else ""
+        join_sql = "JOIN documents d ON c.doc_id = d.doc_id" if doc_types else ""
+
+        # 构造 SQL（用 <-> 余弦距离排序）
+        sql = text(f"""
+            SELECT c.chunk_id, c.doc_id, c.collection_id, c.content,
+                   c.chunk_index, c.embedding, c.chunk_metadata, c.ctime,
+                   1 - (c.embedding <-> '{vector_str}'::vector) AS similarity
+            FROM chunks c
+            {join_sql}
+            {where_sql}
+            ORDER BY c.embedding <-> '{vector_str}'::vector
+            LIMIT :top_k
+        """)
+
+        params["top_k"] = top_k
+        result = await db.execute(sql, params)
+        rows = result.fetchall()
+
+        # 将结果转换为 Chunk 对象列表
+        chunks = []
+        for row in rows:
+            chunk = Chunk(
+                chunk_id=row[0],
+                doc_id=row[1],
+                collection_id=row[2],
+                content=row[3],
+                chunk_index=row[4],
+                embedding=row[5],
+                chunk_metadata=row[6],
+                ctime=row[7],
+            )
+            chunks.append(chunk)
 
         return chunks
 

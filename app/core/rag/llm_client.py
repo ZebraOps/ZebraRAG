@@ -5,6 +5,7 @@
 from typing import List, Dict, Any, Optional
 import httpx
 import logging
+import os
 
 from app.core.config import get_settings
 
@@ -45,21 +46,27 @@ class TencentLLMClient:
         max_tokens = max_tokens or self.max_tokens
 
         try:
-            async with httpx.AsyncClient(timeout=120.0) as client:
-                response = await client.post(
-                    f"{self.api_endpoint}/chat/completions",
-                    headers={
-                        "Authorization": f"Bearer {self.api_key}",
-                        "Content-Type": "application/json"
-                    },
-                    json={
-                        "model": self.model,
-                        "messages": messages,
-                        "temperature": temperature,
-                        "max_tokens": max_tokens,
-                        "stream": stream
-                    }
-                )
+            # 清除 socks:// 代理（httpx 不支持该 scheme）
+            saved_env = {}
+            for key in ('ALL_PROXY', 'all_proxy'):
+                saved_env[key] = os.environ.pop(key, None)
+
+            try:
+                async with httpx.AsyncClient(timeout=120.0) as client:
+                    response = await client.post(
+                        f"{self.api_endpoint}/chat/completions",
+                        headers={
+                            "Authorization": f"Bearer {self.api_key}",
+                            "Content-Type": "application/json"
+                        },
+                        json={
+                            "model": self.model,
+                            "messages": messages,
+                            "temperature": temperature,
+                            "max_tokens": max_tokens,
+                            "stream": stream
+                        }
+                    )
 
                 if response.status_code == 200:
                     data = response.json()
@@ -69,6 +76,10 @@ class TencentLLMClient:
                 else:
                     logger.error(f"❌ LLM调用失败: {response.status_code} - {response.text}")
                     return f"LLM调用失败: {response.status_code}"
+            finally:
+                for key, value in saved_env.items():
+                    if value is not None:
+                        os.environ[key] = value
 
         except Exception as e:
             logger.error(f"❌ LLM调用异常: {e}")

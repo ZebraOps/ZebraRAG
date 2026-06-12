@@ -18,9 +18,10 @@ class TencentEmbeddingService:
     def __init__(self):
         settings = get_settings()
         self.api_key = settings.OPENAI_API_KEY
-        self.api_base = settings.OPENAI_API_BASE
+        self.api_base = settings.EMBEDDING_API_BASE
         self.model = settings.EMBEDDING_MODEL
         self.batch_size = settings.EMBEDDING_BATCH_SIZE
+        self.dimension = settings.EMBEDDING_DIMENSION
 
     async def embed_text(self, text: str) -> List[float]:
         """
@@ -78,7 +79,7 @@ class TencentEmbeddingService:
                     else:
                         logger.error(f"❌ 嵌入失败: {response.status_code} - {response.text}")
                         # 返回空向量作为fallback
-                        all_embeddings.extend([[0.0] * 1536 for _ in batch])
+                        all_embeddings.extend([[0.0] * self.dimension for _ in batch])
 
                     # 避免API限流
                     if i + batch_size < len(texts):
@@ -87,7 +88,7 @@ class TencentEmbeddingService:
                 except Exception as e:
                     logger.error(f"❌ 嵌入异常: {e}")
                     # 返回空向量作为fallback
-                    all_embeddings.extend([[0.0] * 1536 for _ in batch])
+                    all_embeddings.extend([[0.0] * self.dimension for _ in batch])
 
         return all_embeddings
 
