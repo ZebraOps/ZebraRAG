@@ -47,7 +47,7 @@ class TencentLLMClient:
         try:
             async with httpx.AsyncClient(timeout=120.0) as client:
                 response = await client.post(
-                    f"{self.api_endpoint}/v1/chat/completions",
+                    f"{self.api_endpoint}/chat/completions",
                     headers={
                         "Authorization": f"Bearer {self.api_key}",
                         "Content-Type": "application/json"

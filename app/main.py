@@ -54,14 +54,15 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS配置
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # 生产环境需要配置具体域名
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# CORS 由 ZebraGateway 统一处理，此处不再重复设置
+# 如果需要独立运行（不经过 Gateway），可以取消下面的注释
+# app.add_middleware(
+#     CORSMiddleware,
+#     allow_origins=["*"],
+#     allow_credentials=True,
+#     allow_methods=["*"],
+#     allow_headers=["*"],
+# )
 
 
 # 请求头注入中间件（从Gateway获取用户信息）
