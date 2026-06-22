@@ -30,19 +30,36 @@ class LocalEmbeddingService:
         try:
             from fastembed import TextEmbedding
 
-            # 保存并清除可能冲突的代理环境变量
+            # 保存原始环境变量
             saved_env = {}
-            for key in ('ALL_PROXY', 'all_proxy'):
-                saved_env[key] = os.environ.pop(key, None)
+            env_keys = [
+                'HF_HUB_OFFLINE', 'HF_ENDPOINT',
+                'ALL_PROXY', 'all_proxy',
+                'HTTP_PROXY', 'HTTPS_PROXY', 'http_proxy', 'https_proxy',
+                'NO_PROXY', 'no_proxy'
+            ]
+            for key in env_keys:
+                saved_env[key] = os.environ.get(key)
+
+            # 清除所有代理设置（SOCKS代理会干扰 huggingface_hub）
+            for key in ('ALL_PROXY', 'all_proxy', 'HTTP_PROXY', 'HTTPS_PROXY', 'http_proxy', 'https_proxy'):
+                os.environ.pop(key, None)
+
+            # 设置 HuggingFace 镜像源（中国用户）
+            if not saved_env.get('HF_ENDPOINT'):
+                os.environ['HF_ENDPOINT'] = 'https://hf-mirror.com'
+                logger.info("已设置 HuggingFace 镜像源: https://hf-mirror.com")
 
             try:
                 logger.info(f"⏳ 加载本地嵌入模型: {self.model_name} ...")
                 self._model = TextEmbedding(model_name=self.model_name)
                 logger.info(f"✅ 本地嵌入模型加载完成（ONNX，维度: {self.dimension}）")
             finally:
-                for key, value in saved_env.items():
-                    if value is not None:
-                        os.environ[key] = value
+                # 恢复原始环境变量（保留 HF_ENDPOINT 和 NO_PROXY）
+                for key in ('HF_ENDPOINT', 'NO_PROXY', 'no_proxy'):
+                    if saved_env.get(key):
+                        os.environ[key] = saved_env[key]
+                # 不恢复代理设置，避免后续请求出问题
 
         except ImportError:
             raise ImportError(
@@ -50,6 +67,7 @@ class LocalEmbeddingService:
             )
         except Exception as e:
             logger.error(f"❌ 加载嵌入模型失败: {e}")
+            logger.error("💡 提示: 如在中国，请设置环境变量: HF_ENDPOINT=https://hf-mirror.com")
             raise
 
     async def embed_text(self, text: str) -> List[float]:

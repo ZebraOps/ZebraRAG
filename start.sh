@@ -32,6 +32,10 @@ fi
 export SERVICE_IP="${SERVICE_IP:-127.0.0.1}"
 export SERVICE_PORT="${SERVICE_PORT:-4124}"
 
+# HuggingFace 镜像源（中国用户推荐）
+# 如果 HuggingFace 不可达，fastembed 会自动切换到此镜像
+export HF_ENDPOINT="${HF_ENDPOINT:-https://hf-mirror.com}"
+
 # Nacos配置（可选）
 export NACOS_SERVER_ADDR="${NACOS_SERVER_ADDR:-localhost:8848}"
 
