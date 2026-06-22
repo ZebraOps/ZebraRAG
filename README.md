@@ -1,5 +1,5 @@
 <div align="center">
-  <h1>🦓 ZebraRAG</h1>
+  <h1>ZebraRAG</h1>
   <span>中文 | <a href="./README.en.md">English</a></span>
   <br/><br/>
   <img src="https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white" />
