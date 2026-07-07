@@ -23,6 +23,7 @@ class RetrievalService:
         collection_ids: Optional[List[int]] = None,
         doc_types: Optional[List[str]] = None,
         top_k: int = None,
+        similarity_threshold: float = None,
         db: AsyncSession = None
     ) -> List[Chunk]:
         """
@@ -33,15 +34,19 @@ class RetrievalService:
             collection_ids: 集合ID过滤（可选）
             doc_types: 文档类型过滤（可选）
             top_k: 返回数量
+            similarity_threshold: 相似度阈值，低于此值的结果会被过滤（默认 0.5）
             db: 数据库会话
 
         Returns:
-            相似分块列表
+            相似分块列表（已过滤低于阈值的无关结果）
         """
         if top_k is None:
             top_k = self.top_k
+        if similarity_threshold is None:
+            settings = get_settings()
+            similarity_threshold = settings.SIMILARITY_THRESHOLD
 
-        # 构建查询向量字符串
+        # 构建查询向量字符串（pgvector 不支持参数化向量，需字符串拼接）
         vector_str = "[" + ",".join(str(v) for v in query_embedding) + "]"
 
         # 构建过滤条件
@@ -63,18 +68,23 @@ class RetrievalService:
         where_sql = ("WHERE " + " AND ".join(where_clauses)) if where_clauses else ""
         join_sql = "JOIN documents d ON c.doc_id = d.doc_id" if doc_types else ""
 
-        # 构造 SQL（用 <-> 余弦距离排序）
+        # 构造 SQL：用子查询计算余弦相似度，外层按阈值过滤
+        # 余弦相似度 = 1 - 余弦距离，BGE 模型通常 >= 0.5 为相关
         sql = text(f"""
-            SELECT c.chunk_id, c.doc_id, c.collection_id, c.content,
-                   c.chunk_index, c.embedding, c.chunk_metadata, c.ctime,
-                   1 - (c.embedding <-> '{vector_str}'::vector) AS similarity
-            FROM chunks c
-            {join_sql}
-            {where_sql}
-            ORDER BY c.embedding <-> '{vector_str}'::vector
+            SELECT * FROM (
+                SELECT c.chunk_id, c.doc_id, c.collection_id, c.content,
+                       c.chunk_index, c.embedding, c.chunk_metadata, c.ctime,
+                       1 - (c.embedding <-> '{vector_str}'::vector) AS similarity
+                FROM chunks c
+                {join_sql}
+                {where_sql}
+            ) sub
+            WHERE similarity >= :threshold
+            ORDER BY similarity DESC
             LIMIT :top_k
         """)
 
+        params["threshold"] = similarity_threshold
         params["top_k"] = top_k
         result = await db.execute(sql, params)
         rows = result.fetchall()

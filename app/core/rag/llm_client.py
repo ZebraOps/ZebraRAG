@@ -23,6 +23,10 @@ class TencentLLMClient:
         self.temperature = settings.LLM_TEMPERATURE
         self.max_tokens = settings.LLM_MAX_TOKENS
 
+        # 记录最近一次调用的元信息
+        self.last_model: str = ""
+        self.last_usage: dict = {}
+
     async def chat_completion(
         self,
         messages: List[Dict[str, str]],
@@ -94,6 +98,8 @@ class TencentLLMClient:
         """
         流式对话补全 — 逐 token yield
 
+        完成后可通过 self.last_model / self.last_usage 获取本次调用的元信息。
+
         Args:
             messages: 消息列表
             temperature: 温度参数
@@ -104,6 +110,10 @@ class TencentLLMClient:
         """
         temperature = temperature or self.temperature
         max_tokens = max_tokens or self.max_tokens
+
+        # 重置上一次记录
+        self.last_model = ""
+        self.last_usage = {}
 
         # 清除 socks:// 代理
         saved_env = {}
@@ -124,7 +134,8 @@ class TencentLLMClient:
                         "messages": messages,
                         "temperature": temperature,
                         "max_tokens": max_tokens,
-                        "stream": True
+                        "stream": True,
+                        "stream_options": {"include_usage": True}
                     }
                 ) as response:
                     if response.status_code != 200:
@@ -146,6 +157,20 @@ class TencentLLMClient:
                         try:
                             import json
                             chunk = json.loads(data_str)
+
+                            # 采集模型名（仅首次）
+                            if not self.last_model:
+                                self.last_model = chunk.get("model", "")
+
+                            # 采集 token 用量（最后一个有 usage 的 chunk）
+                            usage = chunk.get("usage")
+                            if usage:
+                                self.last_usage = {
+                                    "prompt_tokens": usage.get("prompt_tokens", 0),
+                                    "completion_tokens": usage.get("completion_tokens", 0),
+                                    "total_tokens": usage.get("total_tokens", 0),
+                                }
+
                             delta = chunk.get("choices", [{}])[0].get("delta", {})
                             content = delta.get("content", "")
 
@@ -155,7 +180,19 @@ class TencentLLMClient:
                         except (json.JSONDecodeError, KeyError, IndexError):
                             continue
 
-                    logger.info(f"✅ LLM流式生成完成: {len(full_content)} 字符")
+                    # 如果 API 未返回 usage，估算一个
+                    if not self.last_usage and full_content:
+                        self.last_usage = {
+                            "prompt_tokens": 0,
+                            "completion_tokens": len(full_content),
+                            "total_tokens": len(full_content),
+                        }
+
+                    logger.info(
+                        f"✅ LLM流式生成完成: {len(full_content)} 字符, "
+                        f"model={self.last_model or self.model}, "
+                        f"usage={self.last_usage}"
+                    )
         except Exception as e:
             logger.error(f"❌ LLM流式调用异常: {e}")
             yield f"[LLM调用异常: {str(e)}]"
@@ -183,12 +220,22 @@ class TencentLLMClient:
         """
         if not system_prompt:
             system_prompt = """你是一个专业的DevOps/SRE运维助手。
-基于提供的知识库内容，准确回答用户的问题。
-要求：
-1. 优先使用知识库中的信息
-2. 如果知识库中没有相关信息，明确说明
-3. 回答要简洁、专业、可操作
-4. 如果是故障排查，给出具体步骤"""
+
+回答用户问题时，请遵循以下原则：
+
+【有相关知识库内容时】
+- 优先使用知识库提供的信息，引用具体步骤和配置
+- 回答末尾标注"📚 以上回答基于知识库内容"
+
+【知识库内容不相关或为空时】
+- 不要输出无关的知识库内容
+- 基于你的专业知识直接回答用户的问题
+- 回答末尾标注"🤖 以上回答基于通用知识，知识库暂无相关内容"
+
+【回答风格】
+- 简洁、专业、可操作
+- 故障排查类问题给出具体步骤
+- 配置类问题给出示例代码或参数"""
 
         messages = [
             {"role": "system", "content": system_prompt},
@@ -216,12 +263,22 @@ class TencentLLMClient:
         """
         if not system_prompt:
             system_prompt = """你是一个专业的DevOps/SRE运维助手。
-基于提供的知识库内容，准确回答用户的问题。
-要求：
-1. 优先使用知识库中的信息
-2. 如果知识库中没有相关信息，明确说明
-3. 回答要简洁、专业、可操作
-4. 如果是故障排查，给出具体步骤"""
+
+回答用户问题时，请遵循以下原则：
+
+【有相关知识库内容时】
+- 优先使用知识库提供的信息，引用具体步骤和配置
+- 回答末尾标注"📚 以上回答基于知识库内容"
+
+【知识库内容不相关或为空时】
+- 不要输出无关的知识库内容
+- 基于你的专业知识直接回答用户的问题
+- 回答末尾标注"🤖 以上回答基于通用知识，知识库暂无相关内容"
+
+【回答风格】
+- 简洁、专业、可操作
+- 故障排查类问题给出具体步骤
+- 配置类问题给出示例代码或参数"""
 
         messages = [
             {"role": "system", "content": system_prompt},

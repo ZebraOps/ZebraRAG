@@ -72,6 +72,9 @@ rag:
   chunk_size: 500
   chunk_overlap: 50
 
+  # 相似度计算配置,低于此值的检索结果被过滤
+  similarity_threshold: 0.5
+
   # 检索配置
   top_k: 10
 

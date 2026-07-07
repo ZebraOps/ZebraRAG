@@ -49,6 +49,9 @@ rag:
   chunk_overlap: 50
   top_k: 10
 
+  # 相似度计算配置,低于此值的检索结果被过滤
+  similarity_threshold: 0.5
+
 # 服务注册配置
 nacos:
   server_addr: "localhost:8848"

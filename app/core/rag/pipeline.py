@@ -173,6 +173,9 @@ class RAGPipeline:
             yield {"type": "error", "message": f"向量检索失败: {str(e)}"}
             return
 
+        if not chunks:
+            logger.info(f"⚠️ 未找到相关知识（相似度阈值过滤后无结果），问题：{question[:100]}")
+
         # 构建来源信息
         sources = [
             {
@@ -183,7 +186,7 @@ class RAGPipeline:
             for chunk in chunks[:3]
         ]
 
-        # 通知前端检索完成
+        # 通知前端检索完成（chunks 为空时 sources 也是空列表）
         yield {"type": "retrieval_done", "sources": sources}
 
         # 3. 上下文组装
@@ -201,6 +204,11 @@ class RAGPipeline:
 
         full_answer = "".join(answer_parts)
 
+        # 获取本次 LLM 调用的元信息
+        llm_client = get_llm_client()
+        model = llm_client.last_model or llm_client.model
+        usage = llm_client.last_usage or {}
+
         # 5. 保存查询历史
         try:
             query_history = QueryHistory(
@@ -213,10 +221,10 @@ class RAGPipeline:
             await db.commit()
             await db.refresh(query_history)
 
-            yield {"type": "done", "query_id": query_history.query_id}
+            yield {"type": "done", "query_id": query_history.query_id, "model": model, "usage": usage}
         except Exception as e:
             # 即使保存历史失败，也返回答案
-            yield {"type": "done", "query_id": 0}
+            yield {"type": "done", "query_id": 0, "model": model, "usage": usage}
             logger.error(f"保存查询历史失败: {e}")
 
     def _assemble_context(self, chunks: List[Chunk]) -> str:

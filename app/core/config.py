@@ -57,6 +57,7 @@ class Settings(BaseSettings):
     CHUNK_SIZE: int = Field(default=500)
     CHUNK_OVERLAP: int = Field(default=50)
     TOP_K: int = Field(default=10)
+    SIMILARITY_THRESHOLD: float = Field(default=0.5)
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -98,6 +99,7 @@ class Settings(BaseSettings):
         self.CHUNK_SIZE = config_manager.get('rag.chunk_size', self.CHUNK_SIZE)
         self.CHUNK_OVERLAP = config_manager.get('rag.chunk_overlap', self.CHUNK_OVERLAP)
         self.TOP_K = config_manager.get('rag.top_k', self.TOP_K)
+        self.SIMILARITY_THRESHOLD = config_manager.get('rag.similarity_threshold', self.SIMILARITY_THRESHOLD)
 
         # 服务配置
         self.SERVICE_PORT = config_manager.get('app.port', self.SERVICE_PORT)
