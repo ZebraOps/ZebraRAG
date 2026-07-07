@@ -24,7 +24,7 @@ class Settings(BaseSettings):
 
     # LLM配置（腾讯CodingPlan）
     LLM_PROVIDER: str = Field(default="tencent")
-    OPENAI_API_KEY: str = Field(default="sk-sp-QzpR0qsiuiBM5QBmJSG5Mdxi6mWPBlWybWhuoWmlrfbGeh6I")
+    OPENAI_API_KEY: str = Field(default="")
     OPENAI_API_BASE: str = Field(default="https://api.lkeap.cloud.tencent.com/coding/v3")
     LLM_API_ENDPOINT: str = Field(default="https://api.lkeap.cloud.tencent.com/coding/anthropic")
     LLM_MODEL: str = Field(default="glm-5")

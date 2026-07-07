@@ -109,3 +109,26 @@ class QueryResponse(BaseModel):
     answer: str
     sources: List[dict]
     query_id: int
+
+
+# ===== Query History Schemas =====
+class QueryHistoryResponse(BaseModel):
+    """查询历史响应"""
+
+    query_id: int
+    user_id: Optional[int] = None
+    query_text: str
+    answer_text: Optional[str] = None
+    source_docs: Optional[List[int]] = None
+    rating: Optional[int] = None
+    feedback: Optional[str] = None
+    ctime: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class FeedbackRequest(BaseModel):
+    """反馈请求"""
+
+    rating: int = Field(..., ge=1, le=5, description="评分 1-5")
+    feedback: Optional[str] = Field(None, description="文字反馈")

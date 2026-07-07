@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 
 from app.db.session import get_async_db
-from app.models import Document
+from app.models import Document, Chunk
 from app.schemas import (
     ResponseModel,
     PageResponseModel,
@@ -133,13 +133,16 @@ async def update_document(
     data: DocumentUpdate,
     db: AsyncSession = Depends(get_async_db)
 ):
-    """更新文档"""
+    """更新文档（如果内容变更，自动删除旧chunk并重新分块+嵌入）"""
     query = select(Document).where(Document.doc_id == doc_id)
     result = await db.execute(query)
     doc = result.scalar_one_or_none()
 
     if not doc:
         return ResponseModel(code=404, message="Document not found")
+
+    # 记录是否更新了内容
+    content_changed = data.content is not None and data.content != doc.content
 
     # 更新字段
     update_data = data.model_dump(exclude_unset=True)
@@ -151,6 +154,23 @@ async def update_document(
 
     await db.commit()
     await db.refresh(doc)
+
+    # 如果内容变更，删除旧chunk并重新分块+嵌入
+    if content_changed:
+        # 删除旧分块
+        delete_query = select(Chunk).where(Chunk.doc_id == doc_id)
+        old_chunks = await db.execute(delete_query)
+        for chunk in old_chunks.scalars().all():
+            await db.delete(chunk)
+        await db.commit()
+
+        # 重新触发 RAG 流水线
+        try:
+            col_id = doc.collection_id or 0
+            chunks = await rag_pipeline.process_document(doc, col_id, db)
+            logger.info(f"文档 {doc_id} 更新后重新处理完成: {len(chunks)} 个分块")
+        except Exception as e:
+            logger.error(f"文档 {doc_id} 更新后嵌入处理失败: {e}")
 
     return ResponseModel(data=DocumentResponse.model_validate(doc))
 

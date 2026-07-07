@@ -3,7 +3,7 @@ API路由注册
 """
 from fastapi import APIRouter
 
-from app.api.v1.endpoints import documents, collections, query
+from app.api.v1.endpoints import documents, collections, query, query_history
 
 api_router = APIRouter()
 
@@ -11,3 +11,4 @@ api_router = APIRouter()
 api_router.include_router(documents.router, prefix="/documents", tags=["documents"])
 api_router.include_router(collections.router, prefix="/collections", tags=["collections"])
 api_router.include_router(query.router, prefix="/query", tags=["query"])
+api_router.include_router(query_history.router, prefix="/query/history", tags=["query-history"])

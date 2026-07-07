@@ -248,7 +248,7 @@ class ConfigManager:
         # LLM配置（腾讯CodingPlan）
         self.local_config['llm'] = {
             'provider': os.getenv('LLM_PROVIDER', 'tencent'),
-            'api_key': os.getenv('OPENAI_API_KEY', 'sk-sp-QzpR0qsiuiBM5QBmJSG5Mdxi6mWPBlWybWhuoWmlrfbGeh6I'),
+            'api_key': os.getenv('OPENAI_API_KEY', ''),
             'api_base': os.getenv('OPENAI_API_BASE', 'https://api.lkeap.cloud.tencent.com/coding/v3'),
             'api_endpoint': os.getenv('LLM_API_ENDPOINT', 'https://api.lkeap.cloud.tencent.com/coding/anthropic'),
             'model': os.getenv('LLM_MODEL', 'glm-5'),

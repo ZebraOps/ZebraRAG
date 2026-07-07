@@ -11,6 +11,8 @@ from app.schemas.document import (
     DocumentResponse,
     QueryRequest,
     QueryResponse,
+    QueryHistoryResponse,
+    FeedbackRequest,
 )
 
 __all__ = [
@@ -25,4 +27,6 @@ __all__ = [
     "DocumentResponse",
     "QueryRequest",
     "QueryResponse",
+    "QueryHistoryResponse",
+    "FeedbackRequest",
 ]
