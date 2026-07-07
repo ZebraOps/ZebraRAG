@@ -85,6 +85,85 @@ class TencentLLMClient:
             logger.error(f"❌ LLM调用异常: {e}")
             return f"LLM调用异常: {str(e)}"
 
+    async def chat_completion_stream(
+        self,
+        messages: List[Dict[str, str]],
+        temperature: Optional[float] = None,
+        max_tokens: Optional[int] = None
+    ):
+        """
+        流式对话补全 — 逐 token yield
+
+        Args:
+            messages: 消息列表
+            temperature: 温度参数
+            max_tokens: 最大token数
+
+        Yields:
+            str: 每个文本 token 片段
+        """
+        temperature = temperature or self.temperature
+        max_tokens = max_tokens or self.max_tokens
+
+        # 清除 socks:// 代理
+        saved_env = {}
+        for key in ('ALL_PROXY', 'all_proxy'):
+            saved_env[key] = os.environ.pop(key, None)
+
+        try:
+            async with httpx.AsyncClient(timeout=120.0) as client:
+                async with client.stream(
+                    "POST",
+                    f"{self.api_endpoint}/chat/completions",
+                    headers={
+                        "Authorization": f"Bearer {self.api_key}",
+                        "Content-Type": "application/json"
+                    },
+                    json={
+                        "model": self.model,
+                        "messages": messages,
+                        "temperature": temperature,
+                        "max_tokens": max_tokens,
+                        "stream": True
+                    }
+                ) as response:
+                    if response.status_code != 200:
+                        error_body = await response.aread()
+                        logger.error(f"❌ LLM流式调用失败: {response.status_code} - {error_body.decode()}")
+                        yield f"[LLM调用失败: {response.status_code}]"
+                        return
+
+                    full_content = ""
+                    async for line in response.aiter_lines():
+                        if not line or not line.startswith("data: "):
+                            continue
+
+                        data_str = line[6:]  # 去掉 "data: " 前缀
+
+                        if data_str.strip() == "[DONE]":
+                            break
+
+                        try:
+                            import json
+                            chunk = json.loads(data_str)
+                            delta = chunk.get("choices", [{}])[0].get("delta", {})
+                            content = delta.get("content", "")
+
+                            if content:
+                                full_content += content
+                                yield content
+                        except (json.JSONDecodeError, KeyError, IndexError):
+                            continue
+
+                    logger.info(f"✅ LLM流式生成完成: {len(full_content)} 字符")
+        except Exception as e:
+            logger.error(f"❌ LLM流式调用异常: {e}")
+            yield f"[LLM调用异常: {str(e)}]"
+        finally:
+            for key, value in saved_env.items():
+                if value is not None:
+                    os.environ[key] = value
+
     async def generate_answer(
         self,
         question: str,
@@ -117,6 +196,40 @@ class TencentLLMClient:
         ]
 
         return await self.chat_completion(messages)
+
+    async def generate_answer_stream(
+        self,
+        question: str,
+        context: str,
+        system_prompt: Optional[str] = None
+    ):
+        """
+        流式生成答案 — 逐 token yield
+
+        Args:
+            question: 用户问题
+            context: 检索到的上下文
+            system_prompt: 系统提示词
+
+        Yields:
+            str: 每个文本 token 片段
+        """
+        if not system_prompt:
+            system_prompt = """你是一个专业的DevOps/SRE运维助手。
+基于提供的知识库内容，准确回答用户的问题。
+要求：
+1. 优先使用知识库中的信息
+2. 如果知识库中没有相关信息，明确说明
+3. 回答要简洁、专业、可操作
+4. 如果是故障排查，给出具体步骤"""
+
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": f"知识库内容：\n{context}\n\n用户问题：{question}"}
+        ]
+
+        async for token in self.chat_completion_stream(messages):
+            yield token
 
 
 # 全局LLM客户端实例

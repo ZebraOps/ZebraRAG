@@ -2,8 +2,11 @@
 RAG管道编排
 整合嵌入、检索、LLM生成
 """
+import logging
 from typing import List, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
+
+logger = logging.getLogger(__name__)
 
 from app.models import Chunk, Document, QueryHistory
 from app.core.rag.embeddings_local import get_embedding_service
@@ -132,6 +135,89 @@ class RAGPipeline:
             ],
             "query_id": query_history.query_id
         }
+
+    async def query_stream(
+        self,
+        question: str,
+        collection_ids: Optional[List[int]] = None,
+        doc_types: Optional[List[str]] = None,
+        user_id: Optional[int] = None,
+        db: AsyncSession = None
+    ):
+        """
+        RAG问答查询（流式输出）
+
+        第一阶段：嵌入 + 检索，yield retrieval_done 事件
+        第二阶段：逐 token yield LLM 输出
+        最后 yield done 事件 + 保存查询历史
+
+        Yields:
+            dict: SSE 事件 {"type": "retrieval_done"|"token"|"done"|"error", ...}
+        """
+        # 1. 问题嵌入
+        try:
+            query_embedding = await get_embedding_service().embed_query(question)
+        except Exception as e:
+            yield {"type": "error", "message": f"嵌入模型调用失败: {str(e)}"}
+            return
+
+        # 2. 向量检索
+        try:
+            chunks = await get_retrieval_service().search_similar_chunks(
+                query_embedding,
+                collection_ids=collection_ids,
+                doc_types=doc_types,
+                db=db
+            )
+        except Exception as e:
+            yield {"type": "error", "message": f"向量检索失败: {str(e)}"}
+            return
+
+        # 构建来源信息
+        sources = [
+            {
+                "doc_id": chunk.doc_id,
+                "content": chunk.content[:200] + "...",
+                "chunk_index": chunk.chunk_index
+            }
+            for chunk in chunks[:3]
+        ]
+
+        # 通知前端检索完成
+        yield {"type": "retrieval_done", "sources": sources}
+
+        # 3. 上下文组装
+        context = self._assemble_context(chunks)
+
+        # 4. 流式调用LLM生成答案
+        answer_parts = []
+        try:
+            async for token in get_llm_client().generate_answer_stream(question, context):
+                answer_parts.append(token)
+                yield {"type": "token", "content": token}
+        except Exception as e:
+            yield {"type": "error", "message": f"LLM生成失败: {str(e)}"}
+            return
+
+        full_answer = "".join(answer_parts)
+
+        # 5. 保存查询历史
+        try:
+            query_history = QueryHistory(
+                user_id=user_id,
+                query_text=question,
+                answer_text=full_answer,
+                source_docs=[chunk.doc_id for chunk in chunks[:5]]
+            )
+            db.add(query_history)
+            await db.commit()
+            await db.refresh(query_history)
+
+            yield {"type": "done", "query_id": query_history.query_id}
+        except Exception as e:
+            # 即使保存历史失败，也返回答案
+            yield {"type": "done", "query_id": 0}
+            logger.error(f"保存查询历史失败: {e}")
 
     def _assemble_context(self, chunks: List[Chunk]) -> str:
         """
